@@ -1,0 +1,24 @@
+{
+  "name": "server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "ejs": "^3.1.10",
+    "express": "^4.19.2",
+    "chrome-aws-lambda": "^6",
+    "nodemon": "^3.1.4",
+    "puppeteer": "^22.15.0"
+  },
+  "devDependencies": {
+    "puppeteer": "^16.2.0"
+  }
+
+
+}
