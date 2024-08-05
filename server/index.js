@@ -95,17 +95,41 @@ async function login(username) {
     );
     console.log("Scraping table data...");
     const trackingtableData = await page.evaluate(() => {
-      const rows = Array.from(document.querySelectorAll('#ctl00_cpStud_grdDaywise tr'));
-      return rows.map(row => {
-        const cells = Array.from(row.querySelectorAll('th, td'));
-        return cells.map(cell => cell.innerText.trim());
+      const rows = Array.from(
+        document.querySelectorAll("#ctl00_cpStud_grdDaywise tr")
+      );
+      return rows.map((row) => {
+        const cells = Array.from(row.querySelectorAll("th, td"));
+        return cells.map((cell) => cell.innerText.trim());
       });
     });
+
+    const studentStatus = await page.$eval(
+      "#ctl00_cpHeader_ucStud_lblStudentStatus",
+      (el) => el.textContent
+    );
+    const currentDate = await page.$eval(
+      "#ctl00_cpHeader_ucStud_lblNowDate",
+      (el) => el.textContent
+    );
+    const lastLogin = await page.$eval(
+      "#ctl00_cpHeader_ucStud_lbllogin",
+      (el) => el.textContent
+    );
+
     console.log("Closing browser...");
     await browser.close();
 
     console.log("Scraping completed successfully.");
-    return { name, data ,tableData,trackingtableData};
+    return {
+      name,
+      data,
+      tableData,
+      trackingtableData,
+      studentStatus,
+      currentDate,
+      lastLogin,
+    };
   } catch (e) {
     console.error("An error occurred during login:", e.message);
     if (browser) {
@@ -125,8 +149,24 @@ app.get("/scrape", async (req, res) => {
   }
 
   try {
-    const { name, data ,tableData,trackingtableData} = await login(username);
-    res.json({ name, total_percentage: data ,tableData,trackingtableData,});
+    const {
+      name,
+      data,
+      tableData,
+      trackingtableData,
+      studentStatus,
+      currentDate,
+      lastLogin,
+    } = await login(username);
+    res.json({
+      name,
+      total_percentage: data,
+      tableData,
+      trackingtableData,
+      studentStatus,
+      currentDate,
+      lastLogin,
+    });
   } catch (e) {
     console.error(
       "An error occurred while handling /scrape route:",
