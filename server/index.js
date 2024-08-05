@@ -82,12 +82,30 @@ async function login(username) {
       "#ctl00_cpStud_lblTotalPercentage",
       (el) => el.textContent
     );
-
+    console.log("Scraping table data...");
+    await page.waitForSelector("#ctl00_cpStud_grdSubject");
+    const tableData = await page.$$eval(
+      "#ctl00_cpStud_grdSubject tr",
+      (rows) => {
+        return rows.map((row) => {
+          const cells = row.querySelectorAll("td");
+          return Array.from(cells, (cell) => cell.innerText.trim());
+        });
+      }
+    );
+    console.log("Scraping table data...");
+    const tableData1 = await page.evaluate(() => {
+      const rows = Array.from(document.querySelectorAll('#ctl00_cpStud_grdDaywise tr'));
+      return rows.map(row => {
+        const cells = Array.from(row.querySelectorAll('th, td'));
+        return cells.map(cell => cell.innerText.trim());
+      });
+    });
     console.log("Closing browser...");
     await browser.close();
 
     console.log("Scraping completed successfully.");
-    return { name, data };
+    return { name, data ,tableData,trackingtableData};
   } catch (e) {
     console.error("An error occurred during login:", e.message);
     if (browser) {
@@ -107,8 +125,8 @@ app.get("/scrape", async (req, res) => {
   }
 
   try {
-    const { name, data } = await login(username);
-    res.render("result", { name, total_percentage: data });
+    const { name, data ,tableData,trackingtableData} = await login(username);
+    res.json({ name, total_percentage: data ,tableData,trackingtableData,});
   } catch (e) {
     console.error(
       "An error occurred while handling /scrape route:",
