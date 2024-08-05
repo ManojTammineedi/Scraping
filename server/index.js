@@ -94,7 +94,7 @@ async function login(username) {
       }
     );
     console.log("Scraping table data...");
-    const tableData1 = await page.evaluate(() => {
+    const trackingtableData = await page.evaluate(() => {
       const rows = Array.from(document.querySelectorAll('#ctl00_cpStud_grdDaywise tr'));
       return rows.map(row => {
         const cells = Array.from(row.querySelectorAll('th, td'));
