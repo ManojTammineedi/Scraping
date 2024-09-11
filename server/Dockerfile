@@ -1,3 +1,4 @@
+# Build stage
 FROM node:18 AS build
 
 RUN apt-get update && apt-get install -y \
@@ -32,6 +33,10 @@ RUN npm install puppeteer
 
 COPY . .
 
+# Build the app (if you have any build steps)
+# RUN npm run build (Uncomment if you have build steps)
+
+# Production stage
 FROM node:18-slim AS production
 
 RUN apt-get update && apt-get install -y \
