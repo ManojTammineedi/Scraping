@@ -9,7 +9,7 @@ services:
     depends_on:
       - mongo
     environment:
-      - DATABASE=mongodb://mongo:27017/
+      - DATABASE=mongodb://root:password@mongo:27017/scraping?authSource=admin
     networks:
       - app-network
   

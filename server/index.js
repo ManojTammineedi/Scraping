@@ -1,4 +1,5 @@
 const express = require("express");
+const mongoose = require('mongoose');
 let chrome = {};
 let puppeteer;
 
@@ -14,6 +15,24 @@ if (process.env.AWS_LAMBDA_FUNCTION_VERSION) {
 } else {
   puppeteer = require("puppeteer");
 }
+
+const mongoUri = process.env.DATABASE || 'mongodb://root:password@mongo:27017/scraping?authSource=admin';
+
+mongoose.connect(mongoUri, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+});
+
+const db = mongoose.connection;
+db.on('error', console.error.bind(console, 'MongoDB connection error:'));
+
+const scrapeSchema = new mongoose.Schema({
+  username: String,
+  data: mongoose.Schema.Types.Mixed,
+  lastScraped: { type: Date, default: Date.now },
+});
+
+const Scrape = mongoose.model('Scrape', scrapeSchema);
 
 async function login(username) {
   let browser;
@@ -82,6 +101,7 @@ async function login(username) {
       "#ctl00_cpStud_lblTotalPercentage",
       (el) => el.textContent
     );
+
     console.log("Scraping table data...");
     await page.waitForSelector("#ctl00_cpStud_grdSubject");
     const tableData = await page.$$eval(
@@ -93,7 +113,8 @@ async function login(username) {
         });
       }
     );
-    console.log("Scraping table data...");
+
+    console.log("Scraping tracking table data...");
     const trackingtableData = await page.evaluate(() => {
       const rows = Array.from(
         document.querySelectorAll("#ctl00_cpStud_grdDaywise tr")
@@ -141,7 +162,7 @@ async function login(username) {
   }
 }
 
-app.get("/scrape", async (req, res) => {
+app.get('/scrape', async (req, res) => {
   const { username = "21B91A05U4" } = req.query; // Set default values
 
   if (!username) {
@@ -149,6 +170,15 @@ app.get("/scrape", async (req, res) => {
   }
 
   try {
+    // Check if data already exists in the database
+    let scrape = await Scrape.findOne({ username });
+
+    if (scrape) {
+      // Return data from the database
+      return res.json(scrape.data);
+    }
+
+    // Scrape data if not found in the database
     const {
       name,
       data,
@@ -158,15 +188,23 @@ app.get("/scrape", async (req, res) => {
       currentDate,
       lastLogin,
     } = await login(username);
-    res.json({
-      name,
-      total_percentage: data,
-      tableData,
-      trackingtableData,
-      studentStatus,
-      currentDate,
-      lastLogin,
+
+    // Save the scraped data to the database
+    scrape = new Scrape({
+      username,
+      data: {
+        name,
+        total_percentage: data,
+        tableData,
+        trackingtableData,
+        studentStatus,
+        currentDate,
+        lastLogin,
+      },
     });
+    await scrape.save();
+
+    res.json(scrape.data);
   } catch (e) {
     console.error(
       "An error occurred while handling /scrape route:",
