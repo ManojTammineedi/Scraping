@@ -1,9 +1,11 @@
 const express = require("express");
 const mongoose = require('mongoose');
+const NodeCache = require('node-cache');
 let chrome = {};
 let puppeteer;
 
 const app = express();
+const cache = new NodeCache({ stdTTL: 600 }); // Cache TTL in seconds
 
 app.set("view engine", "ejs");
 app.set("views", "./views");
@@ -21,6 +23,7 @@ const mongoUri = process.env.DATABASE || 'mongodb://root:password@mongo:27017/sc
 mongoose.connect(mongoUri, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
+  poolSize: 10, // Adjust the pool size as needed
 });
 
 const db = mongoose.connection;
@@ -31,6 +34,8 @@ const scrapeSchema = new mongoose.Schema({
   data: mongoose.Schema.Types.Mixed,
   lastScraped: { type: Date, default: Date.now },
 });
+
+scrapeSchema.index({ username: 1 }); // Ensure indexing
 
 const Scrape = mongoose.model('Scrape', scrapeSchema);
 
@@ -125,7 +130,7 @@ async function login(username) {
       });
     });
 
-    const studentStatus = await page.$eval(
+ const studentStatus = await page.$eval(
       "#ctl00_cpHeader_ucStud_lblStudentStatus",
       (el) => el.textContent
     );
@@ -170,10 +175,18 @@ app.get('/scrape', async (req, res) => {
   }
 
   try {
+    // Check cache first
+    const cachedData = cache.get(username);
+    if (cachedData) {
+      return res.json(cachedData);
+    }
+
     // Check if data already exists in the database
-    let scrape = await Scrape.findOne({ username });
+    let scrape = await Scrape.findOne({ username }).lean(); // Use lean query
 
     if (scrape) {
+      // Store in cache
+      cache.set(username, scrape.data);
       // Return data from the database
       return res.json(scrape.data);
     }
@@ -203,6 +216,9 @@ app.get('/scrape', async (req, res) => {
       },
     });
     await scrape.save();
+
+    // Store in cache
+    cache.set(username, scrape.data);
 
     res.json(scrape.data);
   } catch (e) {
